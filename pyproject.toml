@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tradesentient"
+version = "4.0.0"
+description = "Real-time Crypto Sentiment Trading Bot"
+requires-python = ">=3.8"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "pydantic",
+    "asyncpg",
+    "psycopg2-binary",
+    "requests",
+    "redis",
+    "celery",
+    "websockets",
+    "python-dotenv",
+    "pytest",
+    "httpx",
+    "aiosqlite",
+    "pandas",
+    "yfinance",
+    "jugaad-data",
+    "beautifulsoup4",
+    "lxml",
+]
+
+[project.scripts]
+app = "backend.main:app"
