@@ -29,5 +29,6 @@ dependencies = [
     "lxml",
 ]
 
-[project.scripts]
+[tool.fastapi]
 app = "backend.main:app"
+
