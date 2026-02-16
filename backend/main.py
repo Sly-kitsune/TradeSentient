@@ -185,6 +185,25 @@ async def websocket_endpoint(websocket: WebSocket):
 #  API Endpoints
 # ═══════════════════════════════════════════════════════
 
+@app.get("/")
+async def root():
+    """Root endpoint - API status and information"""
+    return {
+        "name": "TradeSentient API",
+        "version": "4.0.0",
+        "status": "running",
+        "endpoints": {
+            "docs": "/docs",
+            "redoc": "/redoc",
+            "tickers": "/tickers",
+            "forex": "/forex/usd-inr",
+            "market_data": "/market-data/{symbol}",
+            "sentiment": "/sentiment-data",
+            "signals": "/signals",
+            "websocket": "/ws"
+        }
+    }
+
 @app.get("/tickers")
 async def get_tickers():
     """Return top 50 tickers per asset class (from Redis cache)."""
