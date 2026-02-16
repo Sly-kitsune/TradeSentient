@@ -29,6 +29,12 @@ dependencies = [
     "lxml",
 ]
 
+[tool.setuptools]
+packages = ["backend", "worker", "api"]
+
+[tool.setuptools.package-data]
+"*" = ["*.txt", "*.md"]
+
 [tool.fastapi]
 app = "backend.main:app"
 
