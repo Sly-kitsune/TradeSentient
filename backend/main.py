@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -12,16 +12,48 @@ from backend import schemas
 from backend.signals import SignalEngine
 from backend.ticker_config import ASSET_CLASSES, get_cached_tickers, refresh_all_tickers, get_asset_class, get_ticker_info
 from backend.forex import get_usd_inr_rate
+from backend.security import (
+    limiter,
+    rate_limit_error_handler,
+    SecurityHeadersMiddleware,
+    RequestSizeLimitMiddleware,
+    get_allowed_origins,
+)
+from slowapi.errors import RateLimitExceeded
 import os
 
-app = FastAPI(title="TradeSentient API", version="4.0.0")
+# ═══════════════════════════════════════════════════════
+#  FastAPI App Initialization with Security
+# ═══════════════════════════════════════════════════════
 
+app = FastAPI(
+    title="TradeSentient API",
+    version="4.0.0",
+    description="Real-time market intelligence API with security hardening",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# Add rate limiter state
+app.state.limiter = limiter
+
+# Add rate limit error handler
+app.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)
+
+# Add security headers middleware (OWASP best practices)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Add request size limit middleware (prevent large payload DoS)
+app.add_middleware(RequestSizeLimitMiddleware, max_size=1_048_576)  # 1MB limit
+
+# CORS middleware with restricted origins (security hardening)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_allowed_origins(),  # Restricted to specific domains
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Explicit methods only
     allow_headers=["*"],
+    max_age=600,  # Cache preflight requests for 10 minutes
 )
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -182,16 +214,18 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 # ═══════════════════════════════════════════════════════
-#  API Endpoints
+#  API Endpoints (with rate limiting)
 # ═══════════════════════════════════════════════════════
 
 @app.get("/")
-async def root():
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
+async def root(request: Request):
     """Root endpoint - API status and information"""
     return {
         "name": "TradeSentient API",
         "version": "4.0.0",
         "status": "running",
+        "security": "hardened",
         "endpoints": {
             "docs": "/docs",
             "redoc": "/redoc",
@@ -205,7 +239,8 @@ async def root():
     }
 
 @app.get("/tickers")
-async def get_tickers():
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
+async def get_tickers(request: Request):
     """Return top 50 tickers per asset class (from Redis cache)."""
     result = {}
     for cls_key, cls_meta in ASSET_CLASSES.items():
@@ -224,14 +259,17 @@ async def get_tickers():
 
 
 @app.get("/forex/usd-inr")
-async def get_forex_rate():
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
+async def get_forex_rate(request: Request):
     """Return the current cached USD→INR rate."""
     rate = get_usd_inr_rate()
     return {"usd_inr": rate, "currency": "INR"}
 
 
 @app.get("/market-data/{symbol}", response_model=List[schemas.MarketPrice])
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
 async def get_market_data(
+    request: Request,
     symbol: str,
     asset_class: Optional[str] = Query(None),
     limit: int = Query(100, ge=1, le=500),
@@ -246,7 +284,9 @@ async def get_market_data(
 
 
 @app.get("/sentiment-data", response_model=List[schemas.SentimentLog])
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
 async def get_sentiment_data(
+    request: Request,
     symbol: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -260,7 +300,9 @@ async def get_sentiment_data(
 
 
 @app.get("/signals", response_model=List[schemas.TradeSignal])
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
 async def get_signals(
+    request: Request,
     asset_class: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
@@ -274,7 +316,8 @@ async def get_signals(
 
 
 @app.get("/signals/{symbol}", response_model=List[schemas.TradeSignal])
-async def get_signals_by_symbol(symbol: str, db: AsyncSession = Depends(get_db)):
+@limiter.limit("100/minute")  # Public endpoint: 100 req/min per IP
+async def get_signals_by_symbol(request: Request, symbol: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(TradeSignal).where(TradeSignal.symbol == symbol)
         .order_by(TradeSignal.timestamp.desc()).limit(20)
@@ -284,10 +327,12 @@ async def get_signals_by_symbol(symbol: str, db: AsyncSession = Depends(get_db))
 
 # ═══════════════════════════════════════════════════════
 #  Ingestion endpoints — ALL prices stored in INR
+#  Higher rate limits for worker (1000/min)
 # ═══════════════════════════════════════════════════════
 
 @app.post("/ingest/market", response_model=schemas.MarketPrice)
-async def ingest_market_data(data: schemas.MarketPriceCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("1000/minute")  # Ingestion endpoint: 1000 req/min for worker
+async def ingest_market_data(request: Request, data: schemas.MarketPriceCreate, db: AsyncSession = Depends(get_db)):
     asset_class = data.asset_class or get_asset_class(data.symbol)
     ticker_info = get_ticker_info(data.symbol)
 
@@ -344,7 +389,8 @@ async def ingest_market_data(data: schemas.MarketPriceCreate, db: AsyncSession =
 
 
 @app.post("/ingest/sentiment", response_model=schemas.SentimentLog)
-async def ingest_sentiment(data: schemas.SentimentLogCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("1000/minute")  # Ingestion endpoint: 1000 req/min for worker
+async def ingest_sentiment(request: Request, data: schemas.SentimentLogCreate, db: AsyncSession = Depends(get_db)):
     new_entry = SentimentLog(
         source=data.source,
         sentiment_score=data.sentiment_score,

@@ -1,4 +1,5 @@
 services:
+  # Main FastAPI backend
   - type: web
     name: tradesentient-backend
     runtime: python
@@ -7,3 +8,15 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12
+  
+  # Background worker for data ingestion
+  - type: worker
+    name: tradesentient-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m worker.ingest_script
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12
+      - key: API_URL
+        value: https://tradesentient-1.onrender.com
