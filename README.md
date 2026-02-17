@@ -3,6 +3,12 @@
 
 TradeSentient provides a unified view of the top 50 assets across global markets, normalized to INR, with real-time price updates, sentiment analysis, and technical trading signals.
 
+## 🌐 Live Demo
+- **Frontend**: [https://tradesentient.netlify.app](https://tradesentient.netlify.app)
+- **Backend API**: [https://tradesentient-1.onrender.com](https://tradesentient-1.onrender.com)
+- **API Docs**: [https://tradesentient-1.onrender.com/docs](https://tradesentient-1.onrender.com/docs)
+- **Security**: See [SECURITY.md](SECURITY.md) for security features (9/10 rating)
+
 ## ✨ Features
 - **Dynamic Asset Discovery**: Automatically fetches Top 50 Crypto (CoinGecko), S&P 500 (Wikipedia), and NIFTY 50 (NSE).
 - **Real-time Data**: WebSocket streaming for sub-second price updates.
@@ -56,11 +62,18 @@ python -m worker.ingest_script
 ```
 
 ## 📦 Deployment
-The project is configured for cloud deployment:
-- **Frontend**: Ready for **Vercel** (`vercel.json` included).
-- **Backend**: Ready for **Render/Railway** (`Procfile` included).
+The project is deployed on:
+- **Frontend**: **Netlify** - [https://tradesentient.netlify.app](https://tradesentient.netlify.app)
+- **Backend**: **Render** - [https://tradesentient-1.onrender.com](https://tradesentient-1.onrender.com)
 
-See [deployment_guide.md](deployment_guide.md) for detailed instructions.
+### Security Features
+- ✅ Rate limiting (100 req/min public, 1000 req/min worker)
+- ✅ Input validation & XSS prevention
+- ✅ CORS hardening
+- ✅ OWASP security headers
+- ✅ Request size limits
+
+See [SECURITY.md](SECURITY.md) for complete security documentation.
 
 ## 🎨 Theme
 - **Background**: `#c2dbe7` (Pastel Blue)
