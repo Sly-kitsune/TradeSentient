@@ -1,7 +1,5 @@
 # TradeSentient Security Features
 
-![Security Features](file:///C:/Users/RAYANA/.gemini/antigravity/brain/0f155119-0b14-42ca-9961-a1b87549f635/security_features_demo.webp)
-
 ## Overview
 
 TradeSentient API has been hardened with enterprise-grade security controls following OWASP best practices. The application has been upgraded from a **6/10** to a **9/10** security rating.
@@ -155,9 +153,9 @@ After deploying to Render, set the environment variables:
 ## Learn More
 
 For detailed implementation information, see:
-- [Security Module](file:///C:/Users/RAYANA/OneDrive/Desktop/TradeSentient/backend/security.py) - Core security utilities
-- [Enhanced Schemas](file:///C:/Users/RAYANA/OneDrive/Desktop/TradeSentient/backend/schemas.py) - Strict validation models
-- [Main Application](file:///C:/Users/RAYANA/OneDrive/Desktop/TradeSentient/backend/main.py) - Security integration
+- `backend/security.py` - Core security utilities
+- `backend/schemas.py` - Strict validation models
+- `backend/main.py` - Security integration
 
 ---
 
